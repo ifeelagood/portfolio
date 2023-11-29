@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %} Booking {% endblock %}
+{% block head %}
+    {{ super() }}
+    <script>
+        window.onload = function() {
+            // Initialize table row selection
+            initializeRowSelection();
+
+            // Fix timestamps
+            convertTimestamps();
+
+            // Event handling for buttons
+            setupEventHandlers();
+        };
+
+        // Functions related to table row selection
+        function initializeRowSelection() {
+            var table = document.getElementById("schedule-table");
+            for (var i = 1; i < table.rows.length; i++) {
+                table.rows[i].onclick = function() {
+                    // Remove the background from the previously selected row
+                    clearSelection();
+                    // Add the background to the newly selected row
+                    this.className += "selected";
+                };
+            }
+        }
+
+        function clearSelection() {
+            var selected = document.getElementsByClassName("selected");
+            if (selected.length > 0) {
+                selected[0].className = selected[0].className.replace("selected", "");
+            }
+        }
+
+
+        // Conversion utilities
+        function convertToUnixTimestamp(inputValue) {
+            const date = new Date(inputValue);
+            const unixTimestamp = Math.floor(date.getTime() / 1000);
+            return unixTimestamp;
+        }
+
+        // Function to convert a Unix timestamp to a locale date string (en-AU)
+        const toLocaleDateString = (timestamp) => new Date(timestamp * 1000).toLocaleString('en-AU');
+
+        // Function to add a new column with a specific value
+        const addColumn = (row, value) => {
+            const cell = row.insertCell();
+            cell.textContent = value;
+        };
+
+        // Function to hide columns with a given class name
+        const hideColumn = (className) => {
+            const elements = document.getElementsByClassName(className);
+            for (let element of elements) {
+                element.style.display = 'none';
+            }
+        };
+
+        // Main function to convert the Unix timestamps and modify the table
+        const convertTimestamps = () => {
+            const table = document.getElementById('schedule-table');
+            for (let row of table.rows) {
+                const startTimeCell = row.getElementsByClassName('time_start')[0];
+                const endTimeCell = row.getElementsByClassName('time_end')[0];
+
+                if (startTimeCell && endTimeCell) {
+                    const startTime = toLocaleDateString(startTimeCell.textContent);
+                    const endTime = toLocaleDateString(endTimeCell.textContent);
+
+                    addColumn(row, startTime);
+                    addColumn(row, endTime);
+                }
+            }
+
+            hideColumn('time_start');
+            hideColumn('time_end');
+        };
+
+
+        // Event handling setup for buttons
+        function setupEventHandlers() {
+            document.getElementById('book').addEventListener('click', function() {
+                handleEventAction("book_event", 'Success!', 'Failure!', 'Unexpected response!');
+            });
+
+            document.getElementById('free').addEventListener('click', function() {
+                handleEventAction("free_event", 'Success!', 'Failure!', 'Unexpected response!');
+            });
+
+            document.getElementById('delete').addEventListener('click', function() {
+                handleEventAction("remove_event", 'Success!', 'Failure!', 'Unexpected response!');
+            });
+
+            document.getElementById('create').addEventListener('click', function() {
+                document.getElementById('createForm').style.display = 'block';
+            });
+
+            document.getElementById('modify').addEventListener('click', modifyEvent);
+
+            // Form submission handling
+            document.getElementById('eventForm').addEventListener('submit', handleFormSubmit);
+        }
+
+        // AJAX request handler for actions
+        function handleEventAction(actionType, successMessage, failureMessage, unexpectedMessage) {
+            var selectedRow = getSelectedRow();
+            if (!selectedRow) return;
+
+            var data = `action=${actionType}&event_id=${encodeURIComponent(selectedRow.id)}`;
+            sendRequest(data, successMessage, failureMessage, unexpectedMessage);
+        }
+
+        function getSelectedRow() {
+            var selectedRow = document.querySelector('tr.selected');
+            if (!selectedRow) {
+                alert('No event is selected!');
+                return null;
+            }
+            return selectedRow;
+        }
+
+        // AJAX request for sending data
+        function sendRequest(data, successMessage, failureMessage, unexpectedMessage) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/action', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8');
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 400) {
+                    var response = xhr.responseText;
+                    if (response === 'success') { alert(successMessage); } else if (response === 'failure') { alert(failureMessage); } else { alert(unexpectedMessage); }
+                } else {
+                    alert('Request failed! Please try again.');
+                }
+
+                location.reload(); // reload page
+            };
+            xhr.send(data);
+        }
+
+        function unixToISOString(timestamp) {
+            return new Date(timestamp * 1000).toISOString().slice(0, -1);;
+        }
+
+        // Modify event functionality
+        function modifyEvent() {
+            var selectedRow = getSelectedRow();
+            if (!selectedRow) return;
+
+            var eventForm = document.getElementById("eventForm");
+            eventForm.querySelector("#subject_name").value = selectedRow.querySelector('.name').textContent;
+            eventForm.querySelector("#teacher_name").value = selectedRow.querySelector('.subject').textContent;
+
+            eventForm.querySelector("#time_start").value = unixToISOString(selectedRow.querySelector(".time_start").textContent);
+            eventForm.querySelector("#time_end").value = unixToISOString(selectedRow.querySelector(".time_end").textContent);
+
+
+            console.log(unixToISOString(selectedRow.querySelector(".time_end").textContent));
+
+            // Show the form
+            document.getElementById('createForm').style.display = 'block';
+        }
+
+        // Handle form submission
+        function handleFormSubmit(event) {
+            // Prevent the form from submitting in the usual way
+            event.preventDefault();
+
+            // Gather form data
+            var teacherName = document.getElementById('teacher_name').value;
+            var subjectName = document.getElementById('subject_name').value;
+            var timeStart = convertToUnixTimestamp(document.getElementById('time_start').value);
+            var timeEnd = convertToUnixTimestamp(document.getElementById('time_end').value);
+
+            // Additional actions for modifying an event
+            var selectedRow = document.querySelector('tr.selected');
+            var actionType = selectedRow ? 'modify_event' : 'create_event';
+            var eventID = selectedRow ? `&event_id=${encodeURIComponent(selectedRow.id)}` : '';
+
+            // Create data string
+            var data = `action=${actionType}${eventID}&teacher_name=${encodeURIComponent(teacherName)}&subject_name=${encodeURIComponent(subjectName)}&time_start=${encodeURIComponent(timeStart)}&time_end=${encodeURIComponent(timeEnd)}`;
+
+            // Send request
+            sendRequest(data, 'Success!', 'Failure!', 'Unexpected response!');
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="schedule">
+    <table id="schedule-table">
+        <tr>
+            <th>Status</th>
+            <th>Name</th>
+            <th>Subject</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+        </tr>
+        {% for event in events %}
+        <tr id="{{event.event_id}}">
+            <td class="status">{{event.status}}</td>
+            <td class="name">{{event.name}}</td>
+            <td class="subject">{{event.subject}}</td>
+            <td class="time_start">{{event.time_start}}</td>
+            <td class="time_end">{{event.time_end}}</td>
+        </tr>
+        {% endfor %}
+        <!-- Add more rows as necessary -->
+    </table>
+</div>
+<div class="control-buttons">
+    <button id="book">Book</button>
+    <button id="free">Free</button>
+    {% if is_teacher %}
+    <button id="create">Create</button>
+    <button id="delete">Delete</button>
+    <button id="modify">Modify</button>
+    {% endif %}
+</div>
+
+{% if is_teacher %}
+<div id="createForm" style="display: none;">
+    <form id="eventForm">
+        <label for="teacher_name">Teacher Name:</label>
+        <input type="text" id="teacher_name" name="teacher_name" required>
+        <br>
+        <label for="subject_name">Subject Name:</label>
+        <input type="text" id="subject_name" name="subject_name" required>
+        <br>
+        <label for="time_start">Time Start:</label>
+        <input type="datetime-local" id="time_start" name="time_start" required>
+        <br>
+        <label for="time_end">Time End:</label>
+        <input type="datetime-local" id="time_end" name="time_end" required>
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+</div>
+
+{% endif %}
+
+{% endblock %}}
