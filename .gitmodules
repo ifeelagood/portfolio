@@ -1,0 +1,3 @@
+[submodule "booking-webapp"]
+	path = booking-webapp
+	url = git@github.com:ifeelagood/booking-webapp.git
