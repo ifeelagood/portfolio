@@ -4,3 +4,6 @@
 [submodule "extended-essay"]
 	path = extended-essay
 	url = git@github.com:ifeelagood/extended-essay.git
+[submodule "tetris_cpp"]
+	path = tetris_cpp
+	url = git@github.com:ifeelagood/tetris_cpp.git
