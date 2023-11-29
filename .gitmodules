@@ -1,3 +1,6 @@
 [submodule "booking-webapp"]
 	path = booking-webapp
 	url = git@github.com:ifeelagood/booking-webapp.git
+[submodule "extended-essay"]
+	path = extended-essay
+	url = git@github.com:ifeelagood/extended-essay.git
